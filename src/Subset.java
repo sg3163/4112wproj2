@@ -18,6 +18,7 @@ public class Subset {
   double c;   // current best cost for the subset
   int L;      // left child of subplan giving best cost; index of 2^k array
   int R;      // right child of subplan giving best cost; index of 2^k arrray
+  DMetric d;
 
   /*
     n is the number of basic terms in this subset
