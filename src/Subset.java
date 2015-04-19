@@ -24,19 +24,38 @@ public class Subset {
 
   }
 
-  double cmetric(Subset s) {
-
-  }
-
   /*
-    calculates and returns the dmetric of a Subset
+    Calculates and returns the fixed cost for this Subset 
+    Let E be an &-term. The fixed cost of E, written fcost(E), to
+    be the part of the cost of E that does not vary with the selectivity of E. In
+    particular, if E contains k basic terms using f1 through fk, then fcost(E) =
+    kr + (k − 1)l + f1 +···+ fk + t.
   */
-  double dmetric(Subset s) {
+  double fcost() {
 
   }
 
+  /*
+    Calculates and returns the cmetric for this Subset 
+    We call the pair ((p−1)/fcost(E), p) the c-metric of &-term E having
+    combined selectivity p.
+  */
+  double cmetric() {
+
+  }
 
   /*
+    Calculates and returns the dmetric for this Subset 
+    We call the pair (fcost(E), p) the d-metric of &-term E
+    having combined selectivity p.
+  */
+  double dmetric() {
+
+  }
+
+  /*
+    Calculates and returns the cost of this Subset, while also updating
+    this Subset's cost field.
     Consider Algorithm Logical-And on k basic terms, with
     selectivities p1, ... , pk. The total cost for each iteration is kr + (k − 1)l+
     f1 +··· + fk + t + mq + p1 ··· pka, where q = p1 ··· pk if p1 ··· pk ≤ 0.5 and
@@ -45,10 +64,6 @@ public class Subset {
     taken exactly when p1 ··· pk ≤ 0.5.
   */
   double cost() {
-
-  }
-
-  double costNoBranch() {
 
   }
 
