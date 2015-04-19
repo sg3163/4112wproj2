@@ -2,8 +2,11 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class BranchMispredAlgo {
 	
@@ -16,6 +19,8 @@ public class BranchMispredAlgo {
 	private static List<String> queryList = new ArrayList<String>();
 	
 	private static List<Subset []> subsetArrays = new ArrayList<Subset[]>();
+	
+	private static Map<String, Integer> configHashMap = new HashMap<String, Integer>();
 
 	public static void main(String[] args) throws IOException {
 		if(args != null && args[0] != null) {
@@ -27,6 +32,7 @@ public class BranchMispredAlgo {
 			if(args[1] != null) {
 				System.out.println("Config file is - " + args[1]);
 				configFile = new FileReader(args[1]);	
+				
 			}
 		}
 		
@@ -36,6 +42,15 @@ public class BranchMispredAlgo {
 			for(String line; (line = br.readLine()) != null; ) {
 				queryList.add(line);
 
+		    }
+		}
+		
+		// Read input config file and create an Hashmap of input parameters
+		if(configFile != null) {
+			BufferedReader br = new BufferedReader(configFile);
+			for(String line; (line = br.readLine()) != null; ) {
+				String[] arr = line.split(" = ");
+				configHashMap.put(arr[0], Integer.valueOf(arr[1]));
 		    }
 		}
 		
@@ -49,25 +64,24 @@ public class BranchMispredAlgo {
 			
 			subsetArrays.add(subsets);
 			
+			List<List<String>> list =  powerset(Arrays.asList(params));
+			List<String []> incOrderList = increasingOrderList(list, params.length);
+			System.out.println("Completed");
+			
 			// called for each line
 			// For each Array of subsets I'm planning to call something like new Subset(1, arr[0],r,t,l,m from config.txt)
 			
-	/*		for(int i=0;i<params.length;i++) {
-				if(i==0) {
-					for(int j=0;j<params.length;j++){
-						double [] arr = new double[1];
-						arr[0] = Double.parseDouble(params[j]);
-						Subset sub = null;// = new Subset(1, arr[0]);
-						subsets[i+j] = sub;
-					}
-				}else if(i==1) {
-					for (int j=0;j<params.length;j++) {
-						double [] arr = new double[2];
-						arr[0] = Double.parseDouble(params[j]);
-					}
-				}
-			}*/
+			Subset [] subsetArr = new Subset [incOrderList.size()];
 			
+			for(String [] strArr : incOrderList) {
+				// Find selectivity product.
+				double selectivityProduct = 1;
+				for(int i=0;i<strArr.length;i++) {
+					selectivityProduct *= Double.valueOf(strArr[i]);
+				}
+				System.out.println(strArr.length + " - " + strArr.toString() + " - " + selectivityProduct + " - " + configHashMap.get("r") + " - " + configHashMap.get("t"));
+		//		Subset ss = new Subset(strArr.length, strArr, configHashMap.get("r"), configHashMap.get("t"), selectivityProduct);
+			}
 
 		}
 
@@ -108,5 +122,27 @@ public class BranchMispredAlgo {
 	    }
 	    return ps;
 	  }
-
+	
+	/* Method to Create List of arrays in increasing order
+	 * Example [{0.2},{0.3},{0.2,0.3}]
+	 */
+	public static List<String []> increasingOrderList(List<List<String>> list, int size) {
+		if(list != null) {
+			List<String []> newList = new ArrayList<String[]>();
+			for(int i=0;i<size;i++) {
+				for(int j=0;j<list.size();j++) {
+					List<String> subList = list.get(j);
+					if(subList.size() == (i+1)) {
+						String [] subArray = new String[i+1];
+						newList.add(subList.toArray(subArray));
+					}
+				}
+			}
+			return newList;
+			
+		} else {
+			return null;
+		}
+		
+	}
 }
