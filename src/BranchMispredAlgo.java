@@ -40,7 +40,18 @@ public class BranchMispredAlgo {
 				System.out.println(a);
 			}
 		}
-		
+
+
+/*		
+    Algorithm for combining 
+    Consider the plan P1 given by
+      if (E && E1) {answer[j++] = i;},
+    where E is an &-term and E1 is a nonempty expression. Then the cost of this plan is
+      fcost(E) + mq + pC, (1)
+    where p is the overall combined selectivity of E, q = min(p, 1 − p), and C is the
+    cost of the plan P2:
+      if (E1) {answer[j++] = i;}
+*/
 
 	}
 

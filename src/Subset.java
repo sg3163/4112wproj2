@@ -1,6 +1,5 @@
 public class Subset {
 
-
   /*
     Quoted directly from the paper:
     The array elements are records containing the following:
@@ -14,14 +13,21 @@ public class Subset {
   */
 
   int n;      // number of basic terms in this subset
-  double p;   // product of selectivities of all terms in this subset
+  double p = 1;   // product of selectivities of all terms in this subset
   boolean b;  // 1 if no-branch optimization used
   double c;   // current best cost for the subset
   int L;      // left child of subplan giving best cost; index of 2^k array
   int R;      // right child of subplan giving best cost; index of 2^k arrray
 
-  public Subset() {
-
+  /*
+    n is the number of basic terms in this subset
+    parray is an array of size n containing the selectivity of each term
+  */
+  public Subset(int n, int[] parray) {
+    assert parray.length == n;
+    this.n = n;
+    for(i=0; i<parray.length; i++) {
+      p = p * parray[i];
   }
 
   /*
@@ -40,7 +46,7 @@ public class Subset {
     We call the pair ((p−1)/fcost(E), p) the c-metric of &-term E having
     combined selectivity p.
   */
-  double cmetric() {
+  Cmetric cmetric() {
 
   }
 
@@ -49,7 +55,7 @@ public class Subset {
     We call the pair (fcost(E), p) the d-metric of &-term E
     having combined selectivity p.
   */
-  double dmetric() {
+  Dmetric dmetric() {
 
   }
 
