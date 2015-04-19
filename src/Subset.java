@@ -3,7 +3,7 @@ public class Subset {
   /*
     Quoted directly from the paper:
     The array elements are records containing the following:
-    - The number n of basic terms in the corresponding subset
+    - The number k of basic terms in the corresponding subset
     - the product p of the selectivities of all terms in the subset
     - a bit b determining whether the no-branch optimization was used to get
       the best cost, initialized to 0
@@ -12,38 +12,60 @@ public class Subset {
       L and R range over indexes for A[], and are initialized to ∅.
   */
 
-  int n;      // number of basic terms in this subset
+  int k;          // number of basic terms in this subset
   double p = 1;   // product of selectivities of all terms in this subset
-  boolean b;  // 1 if no-branch optimization used
-  double c;   // current best cost for the subset
-  int L;      // left child of subplan giving best cost; index of 2^k array
-  int R;      // right child of subplan giving best cost; index of 2^k arrray
-  DMetric d;
+  boolean b;      // 1 if no-branch optimization used
+  double c;       // current best cost for the subset
+  int L;          // left child of subplan giving best cost; index of 2^k array
+  int R;          // right child of subplan giving best cost; index of 2^k arrray
+
+  double r;       // cost of accessing rj[i]
+  double t;       // cost of performing if test
+  double l;       // cost of performing &
+  double m;       // cost of branch misprediction
+  double a;       // cost of writing answer to answer array and incrementing array counter 
+  double[] f;     // array of costs of applying conditions f1...fk  
 
   /*
-    n is the number of basic terms in this subset
-    parray is an array of size n containing the selectivity of each term
+    k = the number of basic terms in this subset
+    r = cost of accessing rj[i]
+    t = cost of performing if test
+    l = cost of performing &
+    m = cost of branch misprediction
+    a = cost of writing answer to answer array and incrementing array counter
+    f = array of costs of applying each of the conditions f1...fk    
+    p = product of selectivities of terms in this subset
   */
-  public Subset(int n, int[] parray) {
-    assert parray.length == n;
-    this.n = n;
-    for(i=0; i<parray.length; i++) {
-      p = p * parray[i];
+  public Subset(int k, int r, int t, int l, int m, int a, int[] f, int p) {
+    assert f.length == k;
+    this.k = k;
+    this.r = r;
+    this.t = t;
+    this.l = l;
+    this.m = m;
+    this.a = a;
+    this.f = f;
+    this.p = p;
+    this.c = initialCost();
   }
 
   /*
     Calculates and returns the fixed cost for this Subset 
+
+    Quote:
     Let E be an &-term. The fixed cost of E, written fcost(E), to
     be the part of the cost of E that does not vary with the selectivity of E. In
     particular, if E contains k basic terms using f1 through fk, then fcost(E) =
     kr + (k − 1)l + f1 +···+ fk + t.
   */
   double fcost() {
-
+    double cost = 0;
   }
 
   /*
     Calculates and returns the cmetric for this Subset 
+
+    Quote:
     We call the pair ((p−1)/fcost(E), p) the c-metric of &-term E having
     combined selectivity p.
   */
@@ -53,6 +75,8 @@ public class Subset {
 
   /*
     Calculates and returns the dmetric for this Subset 
+
+    Quote:
     We call the pair (fcost(E), p) the d-metric of &-term E
     having combined selectivity p.
   */
@@ -61,17 +85,27 @@ public class Subset {
   }
 
   /*
-    Calculates and returns the cost of this Subset, while also updating
-    this Subset's cost field.
-    Consider Algorithm Logical-And on k basic terms, with
-    selectivities p1, ... , pk. The total cost for each iteration is kr + (k − 1)l+
-    f1 +··· + fk + t + mq + p1 ··· pka, where q = p1 ··· pk if p1 ··· pk ≤ 0.5 and
-    q = 1 − p1 ··· pk otherwise. The q term describes the branch prediction behavior:
-    we assume the system predicts the branch to the next iteration will be
-    taken exactly when p1 ··· pk ≤ 0.5.
-  */
-  double cost() {
+    Calculates and returns the cost of this Subset assuming only &'s used.
 
+    Quote:
+    Consider Algorithm Logical-And on k basic terms, with
+    selectivities p1,...,pk. The total cost for each iteration is
+        kr + (k − 1)l + f1 + ... + fk + t + mq + p1...pk*a
+    where q = p1...pk if p1...pk <= 0.5 and q = 1 - p1...pk otherwise.
+    The q term describes the branch prediction behavior: we assume the system
+    predicts the branch to the next iteration will be taken exactly when
+    p1...pk <= 0.5.
+  */
+  double initialCost() {
+    double cost = 0;
+    cost = cost + k*r;            // cost of reading k elements
+    cost = cost + (k-1)*l;        // cost of performing k-1 &'s
+    for(i=0; i<f.length; i++)     // cost of applying conditions f1...fk
+      cost = cost + f[i];
+    cost = cost + t;              // cost of performing if test
+    cost = cost + m*q;            // cost of branch misprediction
+    cost = cost + p*a;            // cost of writing answer
+    return cost;
   }
 
 }
