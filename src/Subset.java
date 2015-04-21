@@ -15,7 +15,7 @@ public class Subset {
   */
 
   int k;          // number of basic terms in this subset
-  double q;   // product of selectivities of all terms in this subset
+  double p;   // product of selectivities of all terms in this subset
   int b = 0;      // 1 if no-branch optimization used
   double c;       // current best cost for the subset
   int L;          // left child of subplan giving best cost; index of 2^k array
@@ -28,6 +28,24 @@ public class Subset {
   double a;       // cost of writing answer to answer array and incrementing array counter 
   double f;     // array of costs of applying conditions f1...fk - constant for all functions, passed from config
   String [] selectivityArray; 
+  
+  /*
+  cmetric for this Subset 
+
+  Quote:
+  We call the pair ((p−1)/fcost(E), p) the c-metric of &-term E having
+  combined selectivity p.
+   */
+  private CMetric cmetric; 
+  
+  /*
+  Calculates and returns the dmetric for this Subset 
+
+  Quote:
+  We call the pair (fcost(E), p) the d-metric of &-term E
+  having combined selectivity p.
+*/
+  private DMetric dmetric; 
 
   /*
     k = the number of basic terms in this subset
@@ -39,7 +57,7 @@ public class Subset {
     f = array of costs of applying each of the conditions f1...fk    
     p = product of selectivities of terms in this subset
   */
-  public Subset(int k, String[] selectivityArray, double q, int r, int t, int l, int m, int a, int f) {
+  public Subset(int k, String[] selectivityArray, double p, int r, int t, int l, int m, int a, int f) {
     assert selectivityArray.length == k;
     this.k = k;
     this.selectivityArray = selectivityArray;
@@ -49,8 +67,9 @@ public class Subset {
     this.l = l;
     this.m = m;
     this.a = a;
-    this.q = q;
+    this.p = p;
     calculateInitialCost();
+    calculateCandDMetrics();
   }
   
   private void calculateInitialCost() {
@@ -62,6 +81,14 @@ public class Subset {
 	  }else {
 		  this.c = oneBranchCost;
 	  }
+  }
+  
+  private void calculateCandDMetrics() {
+	  CMetric cmetric = new CMetric((p-1)/c, p);
+	  this.cmetric = cmetric;
+	  
+	  DMetric dmetric = new DMetric(c,p);
+	  this.dmetric = dmetric;
   }
 
   /*
@@ -78,26 +105,14 @@ public class Subset {
     return cost;
   }
 
-  /*
-    Calculates and returns the cmetric for this Subset 
 
-    Quote:
-    We call the pair ((p−1)/fcost(E), p) the c-metric of &-term E having
-    combined selectivity p.
-  */
-  CMetric cmetric() {
-	  return null;
+  public CMetric getCmetric() {
+	  return cmetric;
   }
 
-  /*
-    Calculates and returns the dmetric for this Subset 
-
-    Quote:
-    We call the pair (fcost(E), p) the d-metric of &-term E
-    having combined selectivity p.
-  */
-  DMetric dmetric() {
-	  return null;
+  
+  public DMetric getDmetric() {
+	  return dmetric;
   }
 
   /*
@@ -118,10 +133,10 @@ public class Subset {
     totalCost += (k-1)*l;        // cost of performing k-1 &'s
     totalCost += f*k;     		 // cost of applying conditions f1...fk  
     totalCost += + t;            // cost of performing if test
-    if(q <= 0.5) {				 // cost of branch misprediction and writing answer
-    	totalCost += m*q*a;
+    if(p <= 0.5) {				 // cost of branch misprediction and writing answer
+    	totalCost += m*p*a;
     }else {
-    	totalCost += m*(1-q)*a;
+    	totalCost += m*(1-p)*a;
     }
                 
     return totalCost;
