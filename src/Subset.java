@@ -1,3 +1,5 @@
+import javax.annotation.PostConstruct;
+
 public class Subset {
 
   /*
@@ -13,8 +15,8 @@ public class Subset {
   */
 
   int k;          // number of basic terms in this subset
-  double p = 1;   // product of selectivities of all terms in this subset
-  boolean b;      // 1 if no-branch optimization used
+  double q;   // product of selectivities of all terms in this subset
+  int b = 0;      // 1 if no-branch optimization used
   double c;       // current best cost for the subset
   int L;          // left child of subplan giving best cost; index of 2^k array
   int R;          // right child of subplan giving best cost; index of 2^k arrray
@@ -24,7 +26,8 @@ public class Subset {
   double l;       // cost of performing &
   double m;       // cost of branch misprediction
   double a;       // cost of writing answer to answer array and incrementing array counter 
-  double[] f;     // array of costs of applying conditions f1...fk  
+  double f;     // array of costs of applying conditions f1...fk - constant for all functions, passed from config
+  String [] selectivityArray; 
 
   /*
     k = the number of basic terms in this subset
@@ -36,17 +39,29 @@ public class Subset {
     f = array of costs of applying each of the conditions f1...fk    
     p = product of selectivities of terms in this subset
   */
-  public Subset(int k, int r, int t, int l, int m, int a, int[] f, int p) {
-    assert f.length == k;
+  public Subset(int k, String[] selectivityArray, double q, int r, int t, int l, int m, int a, int f) {
+    assert selectivityArray.length == k;
     this.k = k;
+    this.selectivityArray = selectivityArray;
+    this.f = f;
     this.r = r;
     this.t = t;
     this.l = l;
     this.m = m;
     this.a = a;
-    this.f = f;
-    this.p = p;
-    this.c = initialCost();
+    this.q = q;
+    calculateInitialCost();
+  }
+  
+  private void calculateInitialCost() {
+	  double noBranchCost = calculateNoBranchCost();
+	  double oneBranchCost = logicalAndCost();
+	  if(noBranchCost < oneBranchCost) {
+		  this.c = noBranchCost;
+		  this.b = 1;
+	  }else {
+		  this.c = oneBranchCost;
+	  }
   }
 
   /*
@@ -60,6 +75,7 @@ public class Subset {
   */
   double fcost() {
     double cost = 0;
+    return cost;
   }
 
   /*
@@ -69,8 +85,8 @@ public class Subset {
     We call the pair ((p−1)/fcost(E), p) the c-metric of &-term E having
     combined selectivity p.
   */
-  Cmetric cmetric() {
-
+  CMetric cmetric() {
+	  return null;
   }
 
   /*
@@ -80,8 +96,8 @@ public class Subset {
     We call the pair (fcost(E), p) the d-metric of &-term E
     having combined selectivity p.
   */
-  Dmetric dmetric() {
-
+  DMetric dmetric() {
+	  return null;
   }
 
   /*
@@ -96,16 +112,28 @@ public class Subset {
     predicts the branch to the next iteration will be taken exactly when
     p1...pk <= 0.5.
   */
-  double initialCost() {
-    double cost = 0;
-    cost = cost + k*r;            // cost of reading k elements
-    cost = cost + (k-1)*l;        // cost of performing k-1 &'s
-    for(i=0; i<f.length; i++)     // cost of applying conditions f1...fk
-      cost = cost + f[i];
-    cost = cost + t;              // cost of performing if test
-    cost = cost + m*q;            // cost of branch misprediction
-    cost = cost + p*a;            // cost of writing answer
-    return cost;
+  double logicalAndCost() {
+    double totalCost = 0;
+    totalCost += k*r;            // cost of reading k elements
+    totalCost += (k-1)*l;        // cost of performing k-1 &'s
+    totalCost += f*k;     		 // cost of applying conditions f1...fk  
+    totalCost += + t;            // cost of performing if test
+    if(q <= 0.5) {				 // cost of branch misprediction and writing answer
+    	totalCost += m*q*a;
+    }else {
+    	totalCost += m*(1-q)*a;
+    }
+                
+    return totalCost;
+  }
+  
+  /* Calculates the no-branch cost
+     The total
+	 cost for each iteration is kr + (k - 1)l + f1 + ... + fk + a
+	*/
+  double calculateNoBranchCost() {
+	  double totalCost = k * r + (k-1) * l + f * k + a;
+	  return totalCost;
   }
 
 }

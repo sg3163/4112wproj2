@@ -21,6 +21,9 @@ public class BranchMispredAlgo {
 	private static List<Subset []> subsetArrays = new ArrayList<Subset[]>();
 	
 	private static Map<String, Integer> configHashMap = new HashMap<String, Integer>();
+	
+	//List of Map. Each row in input will have one Map. Each map will contain the subset of array elements as key and Subset object as Value. 
+	private static List<Map<String[], Subset>> subsetStringArrayMap = new ArrayList<Map<String[],Subset>>();
 
 	public static void main(String[] args) throws IOException {
 		if(args != null && args[0] != null) {
@@ -68,8 +71,8 @@ public class BranchMispredAlgo {
 			List<String []> incOrderList = increasingOrderList(list, params.length);
 			System.out.println("Completed");
 			
-			// called for each line
-			// For each Array of subsets I'm planning to call something like new Subset(1, arr[0],r,t,l,m from config.txt)
+			Map<String[], Subset> subsetMap = new HashMap<String[], Subset>();
+			subsetStringArrayMap.add(subsetMap);
 			
 			Subset [] subsetArr = new Subset [incOrderList.size()];
 			
@@ -79,8 +82,20 @@ public class BranchMispredAlgo {
 				for(int i=0;i<strArr.length;i++) {
 					selectivityProduct *= Double.valueOf(strArr[i]);
 				}
-				System.out.println(strArr.length + " - " + strArr.toString() + " - " + selectivityProduct + " - " + configHashMap.get("r") + " - " + configHashMap.get("t"));
-		//		Subset ss = new Subset(strArr.length, strArr, configHashMap.get("r"), configHashMap.get("t"), selectivityProduct);
+				Subset ss = new Subset(strArr.length, 
+										strArr, 
+										selectivityProduct,
+										configHashMap.get("r"), 
+										configHashMap.get("t"), 
+										configHashMap.get("l"), 
+										configHashMap.get("m"),
+										configHashMap.get("a"),
+										configHashMap.get("f")
+										);
+				
+				subsetMap.put(strArr, ss);
+				
+				System.out.println("Cost of Subset - " + ss.c + " - is logicalAnd or noBranch - " + ss.b);
 			}
 
 		}
