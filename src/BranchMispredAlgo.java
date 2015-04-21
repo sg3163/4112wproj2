@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,8 +72,10 @@ public class BranchMispredAlgo {
 			List<String []> incOrderList = increasingOrderList(list, params.length);
 			System.out.println("Completed");
 			
-			Map<String[], Subset> subsetMap = new HashMap<String[], Subset>();
-			subsetStringArrayMap.add(subsetMap);
+		//	Map<String[], Subset> subsetMap = new HashMap<String[], Subset>();
+		//	subsetStringArrayMap.add(subsetMap);
+			
+			List<Subset> subSets = new ArrayList<Subset>();
 			
 			Subset [] subsetArr = new Subset [incOrderList.size()];
 			
@@ -93,10 +96,12 @@ public class BranchMispredAlgo {
 										configHashMap.get("f")
 										);
 				
-				subsetMap.put(strArr, ss);
+				subSets.add(ss);
 				
 				System.out.println("Cost of Subset - " + ss.c + " - is logicalAnd or noBranch - " + ss.b);
 			}
+			
+			calculateOptimalPlan(subSets,params.length, subSets);
 
 		}
 
@@ -112,6 +117,79 @@ public class BranchMispredAlgo {
       if (E1) {answer[j++] = i;}
 */
 
+	}
+	
+	/*
+	 // Method Implemention for below part
+	  * 
+	 	For each nonempty s in S (in increasing order)
+		// s is the right child of an && in a plan //
+		For each nonempty s prime in S (in increasing order) such that s intersection s prime is null set ; // s prime is the left child //
+		if (the c-metric of s prime is dominated by the c-metric of the leftmost &-term in s) then
+		// do nothing; suboptimal by Lemma 4.8 //
+		else if (A[s prime].p <= 1/2 and the d-metric of s prime is dominated by the d-metric of some
+		other &-term in s) then
+		// do nothing; suboptimal by Lemma 4.9 //
+		else f
+		Calculate the cost c for the combined plan (s prime && s) using Eq. (1). If c < A[s prime union s].c
+		then:
+		(a) Replace A[s prime union s].c with c.
+		(b) Replace A[s prime union s].L with s prime.
+		(c) Replace A[s prime union s].R with s.
+	 */
+	public static void calculateOptimalPlan(List<Subset> subSets, int size, List<Subset> completeSet) {
+		// Iterate to the times of size for s prime && s
+		for(int i=0;i<size;i++) {
+			List<Subset> sPrime;
+			List<Subset> newSPrime = new ArrayList<Subset>();
+			
+			if(i==0) {
+				sPrime = subSets;
+			} else {
+				sPrime = newSPrime;
+			}
+			
+			// Start iterating with s prime
+			// For the first iteration both s prime array and s array will be same
+			for(int j=0;j<sPrime.size();j++) {
+				
+				Subset sPrimeSubSet = sPrime.get(j);
+				
+				for(int k=0;k<subSets.size();k++) {
+					Subset sSubSet = subSets.get(k);
+					
+					// Check for s intersection s prime is null
+					if(setIntersectionCheck(sPrimeSubSet, sSubSet)) {
+						// if (the c-metric of s prime is dominated by the c-metric of the leftmost &-term in s) then
+						// do nothing; suboptimal by Lemma 4.8 //
+						if(checkForCMetric(sPrimeSubSet, sSubSet)) {
+							// Sub-optimal
+						}else if((sPrimeSubSet.p <= 0.5) && checkforDMetric(sPrimeSubSet, sSubSet)) {
+							/*  A[s prime].p <= 1/2 and the d-metric of s prime is dominated by the d-metric of some
+								other &-term in s) then
+							 do nothing; suboptimal by Lemma 4.9 */
+						} else {
+							//Calculate the cost c for the combined plan (s prime && s)
+							double cost = calculateBranchingCost(sPrimeSubSet, sSubSet);
+							Subset s = findSubset(sPrimeSubSet, sSubSet,completeSet);
+							
+							if(s != null) {
+								if(cost < s.c) {
+									Subset newSubSet = new Subset(cost, sPrimeSubSet.selectivityArray, sSubSet.selectivityArray);
+									newSPrime.add(newSubSet);
+								}
+							}
+						}
+					}
+				}
+			}
+			
+		}
+	}
+	
+	
+	public static void printOptimalPlan() {
+		
 	}
 	
 	public static <T> List<List<T>> powerset(Collection<T> list) {
@@ -160,4 +238,83 @@ public class BranchMispredAlgo {
 		}
 		
 	}
+	
+	// TO-DO need to include L and R
+	public static boolean setIntersectionCheck(Subset s1, Subset s2) {
+		for (String a : s1.selectivityArray) {
+			for(String b: s2.selectivityArray) {
+				if (a.equals(b)) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+	
+	// Lemma 4.8
+	public static boolean checkForCMetric(Subset s1, Subset s2) {
+		if( (s2.getCmetric().p <= s1.getCmetric().p) && (s2.getCmetric().pfcost < s1.getCmetric().pfcost)) {
+			return true;
+		}
+		return false;
+	}
+	
+	// Lemma 4.9
+	// TO-DO need to include L and R
+	public static boolean checkforDMetric(Subset s1, Subset s2) {
+		if((s2.getDmetric().p < s1.getDmetric().p) && (s2.getDmetric().fcost < s1.getDmetric().fcost)) {
+			return true;
+		}
+		return false;
+	}
+	
+	// TO-DO need to include L and R
+	public static double calculateBranchingCost(Subset s1, Subset s2) {
+		double totalCost = 2*s1.r + (2-1)* s1.l + (s1.f*s1.k + s2.f*s2.k) + s1.t;
+		if((s1.p*s2.p)<= 0.5) {
+			totalCost += s1.m*(s1.p*s2.p);
+		} else {
+			totalCost += s1.m*(1- (s1.p*s2.p));
+		}
+		totalCost += s1.a*(s1.p*s2.p);
+		return totalCost;
+	}
+	
+	// Find A[s prime union s]
+	// TO-DO need to include L and R
+	public static Subset findSubset(Subset s1, Subset s2, List<Subset> list) {
+		
+		List<String> combinedArray = Arrays.asList(s1.selectivityArray);
+		
+		for(String s: s2.selectivityArray) {
+			combinedArray.add(s);
+		}
+		
+		Collections.sort(combinedArray);
+		String scombinedArrayString = null;
+		for(String s: combinedArray) {
+			scombinedArrayString += s;
+		}
+		
+		for(Subset sub : list) {
+			List<String> subArray = Arrays.asList(sub.selectivityArray);
+			
+			Collections.sort(subArray);
+			
+			String subArrayString = null;
+			
+			for(String s: subArray) {
+				subArrayString += s;
+			}
+			
+			if(subArrayString.equals(scombinedArrayString)) {
+				return sub;
+			}
+			
+		}
+		
+		return null;
+	}
+	
+	
 }

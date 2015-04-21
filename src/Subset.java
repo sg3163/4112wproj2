@@ -18,8 +18,8 @@ public class Subset {
   double p;   // product of selectivities of all terms in this subset
   int b = 0;      // 1 if no-branch optimization used
   double c;       // current best cost for the subset
-  int L;          // left child of subplan giving best cost; index of 2^k array
-  int R;          // right child of subplan giving best cost; index of 2^k arrray
+  String [] L;    // left child subplan array
+  String [] R;    // right child subplan array
 
   double r;       // cost of accessing rj[i]
   double t;       // cost of performing if test
@@ -72,6 +72,12 @@ public class Subset {
     calculateCandDMetrics();
   }
   
+  public Subset(double cost, String[] L, String[] R) {
+	  this.c = cost;
+	  this.L = L;
+	  this.R = R;	  
+  }
+  
   private void calculateInitialCost() {
 	  double noBranchCost = calculateNoBranchCost();
 	  double oneBranchCost = logicalAndCost();
@@ -84,7 +90,7 @@ public class Subset {
   }
   
   private void calculateCandDMetrics() {
-	  CMetric cmetric = new CMetric((p-1)/c, p);
+	  CMetric cmetric = new CMetric(p,(p-1)/c);
 	  this.cmetric = cmetric;
 	  
 	  DMetric dmetric = new DMetric(c,p);
