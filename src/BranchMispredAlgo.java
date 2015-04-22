@@ -11,41 +11,31 @@ import java.util.Map;
 
 public class BranchMispredAlgo {
 	
-	private static FileReader queryFile = null;
-	
-	private static FileReader configFile = null;
-	
-	// List of all selectivites from query.txt file
-	// Length of this would give us the total input lines
 	private static List<String> queryList = new ArrayList<String>();
-	
-	private static List<Subset []> subsetArrays = new ArrayList<Subset[]>();
-	
 	private static Map<String, Integer> configHashMap = new HashMap<String, Integer>();
-	
-	//List of Map. Each row in input will have one Map. Each map will contain the subset of array elements as key and Subset object as Value. 
-	private static List<Map<String[], Subset>> subsetStringArrayMap = new ArrayList<Map<String[],Subset>>();
+	private static List<Subset []> subsetArrays = new ArrayList<Subset[]>();
 
 	public static void main(String[] args) throws IOException {
+	
+    // check for query file and config file as arguments
+    FileReader queryFile = null;
+    FileReader configFile = null;
 		if(args != null && args[0] != null) {
-			if(args[0] != null) {
-				System.out.println("Query file is - " + args[0]);
+			if(args[0] != null)
 				queryFile = new FileReader(args[0]);
-			}
-			
-			if(args[1] != null) {
-				System.out.println("Config file is - " + args[1]);
+			if(args[1] != null)
 				configFile = new FileReader(args[1]);	
-				
-			}
 		}
-		
+    else {
+      System.out.println("Usage: java BranchMispredAlgo query.text config.text");
+      return;
+    }		
+
 		// Read input file and add selectivities to Collection
 		if(queryFile != null) {
 			BufferedReader br = new BufferedReader(queryFile);
 			for(String line; (line = br.readLine()) != null; ) {
 				queryList.add(line);
-
 		    }
 		}
 		
@@ -58,263 +48,202 @@ public class BranchMispredAlgo {
 		    }
 		}
 		
-		/* Create an array of length 2 to the power of cardinality of selectivities in each row */
+		// Create an array of length 2^(cardinality of selectivities in each row)
 		for (String s : queryList) {
-			String[] params = s.split(" ");
-			
-			int arrayLenght = (int) Math.pow(2, (params.length));
-			
-			Subset [] subsets = new Subset[arrayLenght];
-			
-			subsetArrays.add(subsets);
-			
-			List<List<String>> list =  powerset(Arrays.asList(params));
-			List<String []> incOrderList = increasingOrderList(list, params.length);
-			System.out.println("Completed");
-			
-		//	Map<String[], Subset> subsetMap = new HashMap<String[], Subset>();
-		//	subsetStringArrayMap.add(subsetMap);
-			
-			List<Subset> subSets = new ArrayList<Subset>();
-			
-			Subset [] subsetArr = new Subset [incOrderList.size()];
-			
-			for(String [] strArr : incOrderList) {
-				// Find selectivity product.
-				double selectivityProduct = 1;
-				for(int i=0;i<strArr.length;i++) {
-					selectivityProduct *= Double.valueOf(strArr[i]);
-				}
-				Subset ss = new Subset(strArr.length, 
-										strArr, 
-										selectivityProduct,
+
+      // create a set of conditions on columns from the input
+			String[] selectivities = s.split(" ");
+      List<Condition> conditions = new ArrayList<Condition>();
+      for (int i=0; i<selectivities.length; i++)
+        conditions.add(new Condition(Double.parseDouble(selectivities[i]), i+1));
+		
+      // calculate the power set of the conditions	
+			List<List<Condition>> powerSet =  getPowerSet(conditions);
+			List<Condition []> orderedPowerSet = orderPowerSet(powerSet, selectivities.length);
+
+      // create a Subset object for each set of conditions in the power set
+			List<Subset> subsets = new ArrayList<Subset>();
+			for(Condition [] subsetConditions : orderedPowerSet) {
+				subsets.add(new Subset(subsetConditions,
 										configHashMap.get("r"), 
 										configHashMap.get("t"), 
 										configHashMap.get("l"), 
 										configHashMap.get("m"),
 										configHashMap.get("a"),
 										configHashMap.get("f")
-										);
-				
-				subSets.add(ss);
-				
-				System.out.println("Cost of Subset - " + ss.c + " - is logicalAnd or noBranch - " + ss.b);
+									 ));
 			}
-			
-			calculateOptimalPlan(subSets,params.length, subSets);
 
+			calculateOptimalPlan(subsets);
+      printOptimalPlan(subsets, s);
 		}
+	  System.out.println("==================================================================");
+	}
 
+  /* Stage 2 of Algorithm 4.11 */	
+	public static void calculateOptimalPlan(List<Subset> subsets) {
 
-/*		
-    Algorithm for combining 
-    Consider the plan P1 given by
-      if (E && E1) {answer[j++] = i;},
-    where E is an &-term and E1 is a nonempty expression. Then the cost of this plan is
-      fcost(E) + mq + pC, (1)
-    where p is the overall combined selectivity of E, q = min(p, 1 − p), and C is the
-    cost of the plan P2:
-      if (E1) {answer[j++] = i;}
-*/
+    // For each nonempty s in S (in increasing order)
+    // s is the right child of an && in a plan
+    for (int i=0; i<subsets.size(); i++) {
+      Subset s = subsets.get(i);
 
+      // For each nonempty sPrime in S (in increasing order) such that s intersection sPrime is null
+      // sPrime is the left child of the &&
+      for (int j=0; j<subsets.size(); j++) {
+        Subset sPrime = subsets.get(j);
+        if (s.intersects(sPrime))
+          continue;
+
+        // System.out.println("testing " + sPrime + " && " + s);
+
+        if (sDominatesSPrimeCMetric(sPrime, s)) {
+          // do nothing, suboptimal by Lemma 4.8    
+          // System.out.println("s dominates s' in c-metric");
+          continue;
+        }
+        else if (sPrime.p <= 0.5 && sDominatesSPrimeDMetric(sPrime, s)) {
+          // do nothing, suboptimal by Lemma 4.9
+          // System.out.println("s dominates s' in d-metric");
+          continue;
+        }
+        else {
+          /*
+            Calculate the cost c of (sPrime && s) (the "branching cost")
+            If c < A[sPrime union s].c then:
+              (a) Replace A[sPrime union s].c with c.
+              (b) Replace A[sPrime union s].L with sPrime.
+              (c) Replace A[sPrime union s].R with s.
+          */
+          double c = branchingCost(sPrime, s); 
+    //      System.out.println("branching cost: " + c); 
+          Subset sUnionSPrime = findSubset(sPrime, s, subsets); 
+          if (c < sUnionSPrime.c) { 
+            sUnionSPrime.c = c;
+            sUnionSPrime.left = sPrime;
+            sUnionSPrime.right = s; 
+          }
+        }
+      }
+    }
+  }
+	public static void printOptimalPlan(List<Subset> subsets, String selectivities) {
+
+    System.out.println("==================================================================");
+    System.out.println(selectivities);
+    System.out.println("------------------------------------------------------------------");
+    Subset top = subsets.get(subsets.size()-1);
+    System.out.print("if ");
+    System.out.print(top);
+    System.out.print(" {\n");
+    if (top.b == 1) {
+      Subset rightmost = top.getRightmostAndTerm();
+      System.out.println("\tanswer[j] = i;");
+      System.out.println("\tj += " + rightmost + ";");
+    }
+    else {
+      System.out.println("\tanswer[j++] = i;");
+    }
+    System.out.println("}");
+    System.out.println("------------------------------------------------------------------");
+    System.out.println("cost: " + subsets.get(subsets.size()-1).c);
 	}
 	
-	/*
-	 // Method Implemention for below part
-	  * 
-	 	For each nonempty s in S (in increasing order)
-		// s is the right child of an && in a plan //
-		For each nonempty s prime in S (in increasing order) such that s intersection s prime is null set ; // s prime is the left child //
-		if (the c-metric of s prime is dominated by the c-metric of the leftmost &-term in s) then
-		// do nothing; suboptimal by Lemma 4.8 //
-		else if (A[s prime].p <= 1/2 and the d-metric of s prime is dominated by the d-metric of some
-		other &-term in s) then
-		// do nothing; suboptimal by Lemma 4.9 //
-		else f
-		Calculate the cost c for the combined plan (s prime && s) using Eq. (1). If c < A[s prime union s].c
-		then:
-		(a) Replace A[s prime union s].c with c.
-		(b) Replace A[s prime union s].L with s prime.
-		(c) Replace A[s prime union s].R with s.
-	 */
-	public static void calculateOptimalPlan(List<Subset> subSets, int size, List<Subset> completeSet) {
-		// Iterate to the times of size for s prime && s
-		for(int i=0;i<size;i++) {
-			List<Subset> sPrime;
-			List<Subset> newSPrime = new ArrayList<Subset>();
-			
-			if(i==0) {
-				sPrime = subSets;
-			} else {
-				sPrime = newSPrime;
-			}
-			
-			// Start iterating with s prime
-			// For the first iteration both s prime array and s array will be same
-			for(int j=0;j<sPrime.size();j++) {
-				
-				Subset sPrimeSubSet = sPrime.get(j);
-				
-				for(int k=0;k<subSets.size();k++) {
-					Subset sSubSet = subSets.get(k);
-					
-					// Check for s intersection s prime is null
-					if(setIntersectionCheck(sPrimeSubSet, sSubSet)) {
-						// if (the c-metric of s prime is dominated by the c-metric of the leftmost &-term in s) then
-						// do nothing; suboptimal by Lemma 4.8 //
-						if(checkForCMetric(sPrimeSubSet, sSubSet)) {
-							// Sub-optimal
-						}else if((sPrimeSubSet.p <= 0.5) && checkforDMetric(sPrimeSubSet, sSubSet)) {
-							/*  A[s prime].p <= 1/2 and the d-metric of s prime is dominated by the d-metric of some
-								other &-term in s) then
-							 do nothing; suboptimal by Lemma 4.9 */
-						} else {
-							//Calculate the cost c for the combined plan (s prime && s)
-							double cost = calculateBranchingCost(sPrimeSubSet, sSubSet);
-							Subset s = findSubset(sPrimeSubSet, sSubSet,completeSet);
-							
-							if(s != null) {
-								if(cost < s.c) {
-									Subset newSubSet = new Subset(cost, sPrimeSubSet.selectivityArray, sSubSet.selectivityArray);
-									newSPrime.add(newSubSet);
-								}
-							}
-						}
-					}
-				}
-			}
-			
-		}
-	}
-	
-	
-	public static void printOptimalPlan() {
-		
-	}
-	
-	public static <T> List<List<T>> powerset(Collection<T> list) {
-	    List<List<T>> ps = new ArrayList<List<T>>();
-	    ps.add(new ArrayList<T>());   // start with the empty set
-	 
+	public static <T> List<List<T>> getPowerSet(Collection<T> list) {
+	    List<List<T>> powerSet = new ArrayList<List<T>>();
+      // start with the empty set
+	    powerSet.add(new ArrayList<T>()); 
 	    // for every item in the original list
 	    for (T item : list) {
 	      List<List<T>> newPs = new ArrayList<List<T>>();
-	 
-	      for (List<T> subset : ps) {
-	        // copy all of the current powerset's subsets
+	      for (List<T> subset : powerSet) {
+	        // copy all of the current getPowerSet's subsets
 	        newPs.add(subset);
-	 
 	        // plus the subsets appended with the current item
 	        List<T> newSubset = new ArrayList<T>(subset);
 	        newSubset.add(item);
 	        newPs.add(newSubset);
 	      }
-	 
-	      // powerset is now powerset of list.subList(0, list.indexOf(item)+1)
-	      ps = newPs;
+	      // getPowerSet is now powerset of list.subList(0, list.indexOf(item)+1)
+	      powerSet = newPs;
 	    }
-	    return ps;
+	    return powerSet;
 	  }
 	
-	/* Method to Create List of arrays in increasing order
-	 * Example [{0.2},{0.3},{0.2,0.3}]
-	 */
-	public static List<String []> increasingOrderList(List<List<String>> list, int size) {
-		if(list != null) {
-			List<String []> newList = new ArrayList<String[]>();
-			for(int i=0;i<size;i++) {
-				for(int j=0;j<list.size();j++) {
-					List<String> subList = list.get(j);
-					if(subList.size() == (i+1)) {
-						String [] subArray = new String[i+1];
-						newList.add(subList.toArray(subArray));
-					}
-				}
-			}
-			return newList;
-			
-		} else {
-			return null;
-		}
-		
+	/* 
+    Method to Create List of arrays in increasing order
+	  Example [{0.2},{0.3},{0.2,0.3}]
+	*/
+	public static List<Condition []> orderPowerSet(List<List<Condition>> powerSet, int setSize) {
+    List<Condition []> newList = new ArrayList<Condition[]>();
+    for(int i=0;i<setSize;i++) {
+      for(int j=0;j<powerSet.size();j++) {
+        List<Condition> subList = powerSet.get(j);
+        if(subList.size() == (i+1)) {
+          Condition [] subArray = new Condition[i+1];
+          newList.add(subList.toArray(subArray));
+        }
+      }
+    }
+    return newList;
 	}
 	
-	// TO-DO need to include L and R
-	public static boolean setIntersectionCheck(Subset s1, Subset s2) {
-		for (String a : s1.selectivityArray) {
-			for(String b: s2.selectivityArray) {
-				if (a.equals(b)) {
-					return false;
-				}
-			}
-		}
-		return true;
-	}
-	
-	// Lemma 4.8
-	public static boolean checkForCMetric(Subset s1, Subset s2) {
-		if( (s2.getCmetric().p <= s1.getCmetric().p) && (s2.getCmetric().pfcost < s1.getCmetric().pfcost)) {
+	/*
+    Lemma 4.8
+    Let sLeft be the leftmost & term in s
+    s dominates sPrime if sLeft.p <= sPrime.p and sLeft.pfcost < sPrime.pfcost
+  */
+	public static boolean sDominatesSPrimeCMetric(Subset sPrime, Subset s) {
+    Subset sLeft = s.getLeftmostAndTerm();
+		if( (sLeft.cmetric.p <= sPrime.cmetric.p) &&
+        (sLeft.cmetric.pfcost < sPrime.cmetric.pfcost) )
 			return true;
-		}
 		return false;
 	}
 	
-	// Lemma 4.9
-	// TO-DO need to include L and R
-	public static boolean checkforDMetric(Subset s1, Subset s2) {
-		if((s2.getDmetric().p < s1.getDmetric().p) && (s2.getDmetric().fcost < s1.getDmetric().fcost)) {
-			return true;
-		}
-		return false;
+  /*
+    Lemma 4.9
+    For any &-term in s, call it sAndTerm
+    s dominates sPrime if sAndTerm.p < sPrime.p and sAndTerm.fcost < sPrime.fcost 
+  */
+	public static boolean sDominatesSPrimeDMetric(Subset sPrime, Subset s) {
+    List<Subset> sAndTerms = s.getAndTerms();
+    for (Subset sAndTerm : sAndTerms)
+      if( (sAndTerm.dmetric.p < sPrime.dmetric.p) &&
+          (sAndTerm.dmetric.fcost < sPrime.dmetric.fcost) )
+        return true;
+    return false;
+	}
+
+
+  /*
+    Calculate the cost c for the combined plan (sPrime && s) as:
+        fcost(sPrime) + m*q + p*C
+    where p = the overall combined selectivity of sPrime
+          q = min(p, 1-p)
+          C = cost of s
+  */
+	public static double branchingCost(Subset sPrime, Subset s) {
+    double q = Math.min(sPrime.p, 1 - sPrime.p); 
+    // System.out.println(sPrime.fcost + " + " + sPrime.m + "*" + q + " + " + sPrime.p + "*" + s.c);
+    return sPrime.fcost + (sPrime.m)*q + (sPrime.p)*(s.c);
 	}
 	
-	// TO-DO need to include L and R
-	public static double calculateBranchingCost(Subset s1, Subset s2) {
-		double totalCost = 2*s1.r + (2-1)* s1.l + (s1.f*s1.k + s2.f*s2.k) + s1.t;
-		if((s1.p*s2.p)<= 0.5) {
-			totalCost += s1.m*(s1.p*s2.p);
-		} else {
-			totalCost += s1.m*(1- (s1.p*s2.p));
-		}
-		totalCost += s1.a*(s1.p*s2.p);
-		return totalCost;
-	}
-	
-	// Find A[s prime union s]
-	// TO-DO need to include L and R
+	/*
+     Find A[sPrime union s]
+  */
 	public static Subset findSubset(Subset s1, Subset s2, List<Subset> list) {
-		
-		List<String> combinedArray = Arrays.asList(s1.selectivityArray);
-		
-		for(String s: s2.selectivityArray) {
-			combinedArray.add(s);
-		}
-		
-		Collections.sort(combinedArray);
-		String scombinedArrayString = null;
-		for(String s: combinedArray) {
-			scombinedArrayString += s;
-		}
-		
-		for(Subset sub : list) {
-			List<String> subArray = Arrays.asList(sub.selectivityArray);
-			
-			Collections.sort(subArray);
-			
-			String subArrayString = null;
-			
-			for(String s: subArray) {
-				subArrayString += s;
-			}
-			
-			if(subArrayString.equals(scombinedArrayString)) {
-				return sub;
-			}
-			
-		}
-		
+    // created a standardized representation of s1 U s2
+		List<Condition> combined = new ArrayList<Condition>();
+    combined.addAll(Arrays.asList(s1.conditions));
+    combined.addAll(Arrays.asList(s2.conditions));
+		Collections.sort(combined);
+    // find A[s1 U s2] by comparing standardized representations
+    // (the conditions of Subset objects are already in sorted order) 
+		for (Subset s : list)
+			if(combined.toString().equals(Arrays.asList(s.conditions).toString()))
+				return s;
 		return null;
 	}
-	
 	
 }
