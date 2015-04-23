@@ -195,7 +195,10 @@ public class Subset {
     // Note: it is not possible for only one of left and right to be null
     // since when they are updated, they are both updated together
     else {
-      s = "(" + left.toString() + " && " + right.toString() + ")"; 
+      if (right.right == null && right.b == 1)
+        s = "(" + left.toString() + ")";
+      else
+        s = "(" + left.toString() + " && " + right.toString() + ")"; 
     }
 
     return s;
