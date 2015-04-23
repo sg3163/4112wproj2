@@ -84,9 +84,13 @@ public class Subset {
   private void calculateInitialCost() {
 	  double noBranchCost = calculateNoBranchCost();
 	  double oneBranchCost = logicalAndCost();
-	  if(noBranchCost < oneBranchCost)
+	  if(noBranchCost < oneBranchCost) {
 		  this.b = 1;
-    this.c = oneBranchCost;
+      this.c = noBranchCost;
+    }
+    else {
+      this.c = oneBranchCost; 
+    }
   }
 
   /*
