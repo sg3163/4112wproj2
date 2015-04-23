@@ -99,12 +99,10 @@ public class BranchMispredAlgo {
 
         if (sDominatesSPrimeCMetric(sPrime, s)) {
           // do nothing, suboptimal by Lemma 4.8    
-          // System.out.println("s dominates s' in c-metric");
           continue;
         }
         else if (sPrime.p <= 0.5 && sDominatesSPrimeDMetric(sPrime, s)) {
           // do nothing, suboptimal by Lemma 4.9
-          // System.out.println("s dominates s' in d-metric");
           continue;
         }
         else {
@@ -116,7 +114,6 @@ public class BranchMispredAlgo {
               (c) Replace A[sPrime union s].R with s.
           */
           double c = branchingCost(sPrime, s); 
-    //      System.out.println("branching cost: " + c); 
           Subset sUnionSPrime = findSubset(sPrime, s, subsets); 
           if (c < sUnionSPrime.c) { 
             sUnionSPrime.c = c;
@@ -260,7 +257,6 @@ public class BranchMispredAlgo {
   */
 	public static double branchingCost(Subset sPrime, Subset s) {
     double q = Math.min(sPrime.p, 1 - sPrime.p); 
-    // System.out.println(sPrime.fcost + " + " + sPrime.m + "*" + q + " + " + sPrime.p + "*" + s.c);
     return sPrime.fcost + (sPrime.m)*q + (sPrime.p)*(s.c);
 	}
 	
