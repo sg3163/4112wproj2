@@ -95,7 +95,7 @@ public class BranchMispredAlgo {
         if (s.intersects(sPrime))
           continue;
 
-        // System.out.println("testing " + sPrime + " && " + s);
+        //System.out.println("testing " + sPrime + " && " + s);
 
         if (sDominatesSPrimeCMetric(sPrime, s)) {
           // do nothing, suboptimal by Lemma 4.8    
@@ -133,20 +133,55 @@ public class BranchMispredAlgo {
     System.out.println(selectivities);
     System.out.println("------------------------------------------------------------------");
     Subset top = subsets.get(subsets.size()-1);
-    System.out.print("if ");
-    System.out.print(top);
-    System.out.print(" {\n");
-    if (top.b == 1) {
-      Subset rightmost = top.getRightmostAndTerm();
-      System.out.println("\tanswer[j] = i;");
-      System.out.println("\tj += " + rightmost + ";");
+
+    /*
+      There are 4 main cases we have to consider for printing:
+      CASE 1: if ( mix of & and && ) { could have a no-branch statement here }
+      CASE 2: if ( only && ) { could have no-branch statement here }
+      CASE 3: if (only &) { cannot have no-branch statement }
+      CASE 4: no if condition; only no-branch statement
+      Cases 1 and 2 are covered by checking if the top node has left and right children
+      Cases 3 and 4 are covered by checking the no-branch bit for the top node
+      The two sets of cases (1 and 2, and 3 and 4) are mutually exclusive.
+    */
+
+    // the condition could either be one-branch or no-branch
+    if (top.left == null && top.right == null) {
+      // case 3: one-branch
+      if (top.b == 0) {
+        System.out.print("if ");
+        System.out.print(top);
+        System.out.print(" {\n");
+        System.out.println("\tanswer[j++] = i;");
+        System.out.println("}");
+      }
+      // case 4: no-branch
+      else {
+        System.out.println("answer[j] = i;");
+        System.out.println("j += " + top + ";");
+      }
     }
+    // there will be something in the if condition
+    // because only the rightmost child can be no-branch
+    // cases 1 and 2
     else {
-      System.out.println("\tanswer[j++] = i;");
+      System.out.print("if ");
+      System.out.print(top);
+      System.out.print(" {\n");
+      Subset rightmost = top.getRightmostAndTerm();
+      if (rightmost.b == 1) {
+        System.out.println("\tanswer[j] = i;");
+        System.out.println("\tj += " + rightmost.toString() + ";");
+      }
+      else {
+        System.out.println("\tanswer[j++] = i;");
+      }
+      System.out.println("}");
     }
-    System.out.println("}");
+
     System.out.println("------------------------------------------------------------------");
     System.out.println("cost: " + subsets.get(subsets.size()-1).c);
+
 	}
 	
 	public static <T> List<List<T>> getPowerSet(Collection<T> list) {

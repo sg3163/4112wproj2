@@ -183,13 +183,13 @@ public class Subset {
 
     if (left == null && right == null) {
     // the optimal plan is to use only &'s
-      if (k > 1)
-        s += "(";
-      for (Condition c : conditions)
-        s += ("t" + c.col + "[" + c + "]" + " & ");
-      s = s.substring(0, s.length() - 3);   
-      if (k > 1)
-        s += ")";
+        if (k > 1)
+          s += "(";
+        for (Condition c : conditions)
+          s += ("t" + c.col + "[" + c + "]" + " & ");
+        s = s.substring(0, s.length() - 3);   
+        if (k > 1)
+          s += ")";
     }
 
     // Note: it is not possible for only one of left and right to be null
