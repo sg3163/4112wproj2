@@ -157,8 +157,8 @@ public class BranchMispredAlgo {
       }
       // case 4: no-branch
       else {
-        System.out.println("\tanswer[j] = i;");
-        System.out.println("\tj += " + top + ";");
+        System.out.println("answer[j] = i;");
+        System.out.println("j += " + top + ";");
       }
     }
     // there will be something in the if condition
